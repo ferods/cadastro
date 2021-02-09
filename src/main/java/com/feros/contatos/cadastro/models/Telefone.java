@@ -1,17 +1,16 @@
-package com.feros.contatos.cadastro.dtos;
+package com.feros.contatos.cadastro.models;
 
-import com.feros.contatos.cadastro.models.Telefone;
+import javax.persistence.Embeddable;
 
-public class TelefoneDTO {
-	
+
+@Embeddable
+public class Telefone {
+
 	private String residencial;
 	private String celular;
 
-
-	public TelefoneDTO(Telefone telefone) {
-		this.residencial = telefone.getResidencial();
-		this.celular = telefone.getCelular();
-	}
+	public Telefone() {}
+	
 
 	public String getResidencial() {
 		return residencial;
@@ -20,7 +19,7 @@ public class TelefoneDTO {
 	public void setResidencial(String residencial) {
 		this.residencial = residencial;
 	}
-
+	
 	public String getCelular() {
 		return celular;
 	}
@@ -28,7 +27,5 @@ public class TelefoneDTO {
 	public void setCelular(String celular) {
 		this.celular = celular;
 	}
-
-
 
 }

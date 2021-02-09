@@ -3,94 +3,90 @@ package com.feros.contatos.cadastro.services;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.feros.contatos.cadastro.dtos.DetalhesEnderecoDTO;
 import com.feros.contatos.cadastro.dtos.EnderecoDTO;
-import com.feros.contatos.cadastro.dtos.PessoaEnderecosDTO;
-import com.feros.contatos.cadastro.formularios.EnderecoForm;
-import com.feros.contatos.cadastro.formularios.VinculoForm;
-import com.feros.contatos.cadastro.model.Endereco;
-import com.feros.contatos.cadastro.model.Pessoa;
+import com.feros.contatos.cadastro.dtos.EnderecoDetalhesDTO;
+import com.feros.contatos.cadastro.dtos.PessoaDTO;
+import com.feros.contatos.cadastro.models.Endereco;
+import com.feros.contatos.cadastro.models.Pessoa;
 import com.feros.contatos.cadastro.repositories.EnderecoRepository;
 import com.feros.contatos.cadastro.repositories.PessoaRepository;
+import com.feros.contatos.cadastro.requisicoes.RequisicaoAtualizacaoEndereco;
+import com.feros.contatos.cadastro.requisicoes.RequisicaoEndereco;
 
 @Service
-@Transactional
 public class EnderecoService {
 	
 	@Autowired
-	private EnderecoRepository enderecoRepository;
+	private PessoaRepository pessoaRepository;
 	
 	@Autowired
-	private PessoaRepository pessoaRepository;	
+	private EnderecoRepository enderecoRepository;
 
+	@Transactional
+	public ResponseEntity<EnderecoDTO> salvar(RequisicaoEndereco req, UriComponentsBuilder builder) {
+		
+		Optional<Pessoa> pessoaOpt = pessoaRepository.findById(req.getCpfPessoa());
+		if(!pessoaOpt.isPresent()) return ResponseEntity.notFound().build();
+		
+		Pessoa pessoa = pessoaOpt.get();
+		Endereco enderecoConvertido = req.toEndereco();
+		
+		pessoa.addEndereco(enderecoConvertido);
+		enderecoConvertido.setPessoa(pessoa);
+		
+		pessoaRepository.save(pessoa);		
+		
+		URI uri = builder.path("/api/cadastros/enderecos").buildAndExpand(enderecoConvertido.getId()).toUri();
+		return ResponseEntity.created(uri).body(new EnderecoDTO(enderecoConvertido));
+	}
 	
 	
-	public ResponseEntity<DetalhesEnderecoDTO> salvarEndereco(EnderecoForm enderecoForm, UriComponentsBuilder uriBuilder) {
+
+	public ResponseEntity<List<EnderecoDTO>> listar(String cep) {
 		
-		
-		Endereco endereco = enderecoForm.converter();		
-		enderecoRepository.save(endereco);
-		if(enderecoForm.getIdPessoa() != null){
-		enderecoForm.vincularEnderecoComPessoa(pessoaRepository, endereco, enderecoRepository);
-		}
-		
-		URI uri = uriBuilder.path("endereco/{id}").buildAndExpand(endereco.getId()).toUri() ;
-		return ResponseEntity.created(uri).body(new DetalhesEnderecoDTO(endereco));		
-		
-	}
-
-
-
-
-
-
-
-	public ResponseEntity<?> deletar(Long id) {
-		Optional<Endereco> endereco = enderecoRepository.findById(id);
-		if(endereco.isPresent()) {
-			enderecoRepository.deleteById(id);
-			return ResponseEntity.ok().build();
-		}
-		
-		return ResponseEntity.notFound().build();
-		
-	}
-
-
-
-
-
-
-
-	public ResponseEntity<PessoaEnderecosDTO> vincularEnderecos(Long id, VinculoForm form) {				
-		Pessoa pessoa = form.vincular(id, enderecoRepository, pessoaRepository);
-		return ResponseEntity.ok(new PessoaEnderecosDTO(pessoa));
-	}
-
-
-
-
-
-
-
-	public List<EnderecoDTO> listarEnderecos(Integer cep) {
 		if(cep == null) {
 			List<Endereco> enderecos = enderecoRepository.findAll();
-			return EnderecoDTO.converter(enderecos);			
-			
-		} else {
-			List<Endereco> enderecos = enderecoRepository.findByCep(cep);
-			return EnderecoDTO.converter(enderecos);
+			return ResponseEntity.ok(enderecos.stream().map(EnderecoDTO :: new).collect(Collectors.toList()));
+		}		
+		List<Endereco> enderecos = enderecoRepository.findByCep(cep);
+		return ResponseEntity.ok(enderecos.stream().map(EnderecoDTO :: new).collect(Collectors.toList()));
+	}
+
+
+
+	public ResponseEntity<EnderecoDetalhesDTO> detalhar(Long id) {
 		
-		}
+		Optional<Endereco> enderecoOpt = enderecoRepository.findById(id);
+		if (!enderecoOpt.isPresent()) return ResponseEntity.notFound().build();
+		
+		Endereco endereco = enderecoOpt.get();
+		
+		return ResponseEntity.ok(new EnderecoDetalhesDTO(endereco));
+	}
+
+
+
+	@Transactional
+	public ResponseEntity<EnderecoDTO> atualizar(Long id, RequisicaoAtualizacaoEndereco req) {
+		return ResponseEntity.ok(new EnderecoDTO(req.atualizar(id, enderecoRepository).getBody()));
 	}
 	
+	@Transactional
+	public ResponseEntity<?> remover(Long id){
+		Optional<Endereco> enderecoOpt = enderecoRepository.findById(id);
+		if(!enderecoOpt.isPresent()) return ResponseEntity.notFound().build();
+		enderecoRepository.delete(enderecoOpt.get());;
+		return ResponseEntity.ok().build();
+	}
 	
+
 }
