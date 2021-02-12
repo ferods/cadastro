@@ -20,8 +20,7 @@ import com.feros.contatos.cadastro.requisicoes.RequisicaoPessoa;
 public class PessoaService {
 
 	@Autowired
-	private PessoaRepository pessoaRepository;
-	
+	private PessoaRepository pessoaRepository;	
 	
 
 	@Transactional
